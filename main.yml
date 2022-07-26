@@ -1,0 +1,70 @@
+---
+- name: Configuring lamp stack architecture
+  hosts: lamp
+  become: true
+  vars:
+    package:
+      - httpd
+      - mariadb
+      - mariadb-server
+      - python3-pip
+      - MySQL-python
+    domain: roopas.com
+
+  tasks:
+
+    - name: installing the require package for configuring the lamp stack
+      when: ansible_os_family == "RedHat" and ansible_distribution == "Amazon"
+      yum:
+        name: "{{package}}"
+        state: present
+
+    - name: Installing the php
+      shell: yum install amazon-linux-extras php7.4
+
+    - name: Restarting the services.
+      service:
+        name: "{{item}}"
+        state: started
+        enabled: true
+      with_items:
+        - httpd
+        - mariadb
+
+    - name: copying virtul hosts file using template module
+      template:
+        src: virtualhost.tmpl
+        dest: "/etc/httpd/conf.d/{{domain}}.conf"
+
+    - name: Creating a directory
+      file:
+        path: "/var/www/html/{{domain}}/"
+        state: directory
+        owner: apache
+        group: apache
+
+    - name: Setuping the php script
+      copy:
+        src: phpinformation.tmpl
+        dest: "/var/www/html/{{domain}}/index.php"
+        owner: apache
+        group: apache
+
+    - name: Restarting httpd service
+      service:
+        name: httpd
+        state: restarted
+
+    - name: Creating mysql user
+      mysql_user: 
+        name: Tom
+        password: 12345
+
+    - name: Creating file for the mysql
+      template:
+        src: mysql.tmpl
+        dest: /root/.my.cnf
+        owner: root
+        group: root
+        mode: "0600"
+
